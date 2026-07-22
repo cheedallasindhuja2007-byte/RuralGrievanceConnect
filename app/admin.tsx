@@ -1,3 +1,6 @@
+import { router } from "expo-router";
+import { auth } from "@/firebase/firebaseConfig";
+import { getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -14,6 +17,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+ 
 } from "firebase/firestore";
 import { db } from "@/firebase/firebaseConfig";
 
@@ -38,6 +42,7 @@ interface Complaint {
 export default function AdminScreen() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [searchText, setSearchText] = useState("");
 
 const [statusFilter, setStatusFilter] =
@@ -56,7 +61,75 @@ const [newStatus, setNewStatus] =
 
 const [newDepartment, setNewDepartment] =
   useState("");
+  useEffect(() => {
 
+  const checkAdmin = async () => {
+
+    try {
+
+      if (!auth.currentUser) {
+
+        Alert.alert(
+          "Access Denied",
+          "Please login as administrator."
+        );
+
+        router.replace("/admin-login");
+
+        return;
+
+      }
+
+      const docRef = doc(
+        db,
+        "users",
+        auth.currentUser.uid
+      );
+
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+
+        await auth.signOut();
+
+        router.replace("/admin-login");
+
+        return;
+
+      }
+
+      const user = docSnap.data();
+
+      if (user.role !== "admin") {
+
+        Alert.alert(
+          "Access Denied",
+          "Administrator access required."
+        );
+
+        await auth.signOut();
+
+        router.replace("/admin-login");
+
+        return;
+
+      }
+
+    } catch (error) {
+
+      console.log(error);
+
+      router.replace("/admin-login");
+
+    }
+
+    setCheckingAdmin(false);
+
+  };
+
+  checkAdmin();
+
+}, []);
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, "complaints"),
@@ -177,7 +250,26 @@ const [newDepartment, setNewDepartment] =
     );
 
   });
+  if (checkingAdmin) {
 
+  return (
+
+    <View style={styles.loader}>
+
+      <ActivityIndicator
+        size="large"
+        color="#2E7D32"
+      />
+
+      <Text>
+        Verifying Administrator...
+      </Text>
+
+    </View>
+
+  );
+
+}
   if (loading) {
     return (
       <View style={styles.loader}>

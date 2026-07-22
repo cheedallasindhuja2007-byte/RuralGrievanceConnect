@@ -6,52 +6,151 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import { router } from "expo-router";
 
-export default function AdminLogin() {
-  const [code, setCode] = useState("");
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
-  const verifyAdmin = () => {
-    if (code === "RGC2026ADMIN") {
-      router.replace("/admin");
+import { auth, db } from "../firebase/firebaseConfig";
+
+export default function AdminLogin() {
+  const [accessCode, setAccessCode] = useState("");
+  const [showLogin, setShowLogin] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  const verifyAccessCode = () => {
+    if (accessCode.trim() === "RGC2026ADMIN") {
+      setShowLogin(true);
     } else {
-      Alert.alert(
-        "Access Denied",
-        "Invalid Admin Access Code."
+      Alert.alert("Access Denied", "Invalid Admin Access Code.");
+    }
+  };
+
+  const handleAdminLogin = async () => {
+    if (!email.trim()) {
+      Alert.alert("Validation Error", "Please enter admin email.");
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert("Validation Error", "Please enter password.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
       );
+
+      const uid = userCredential.user.uid;
+
+      const docRef = doc(db, "users", uid);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        Alert.alert("Access Denied", "Admin record not found.");
+        await auth.signOut();
+        return;
+      }
+
+      const userData = docSnap.data();
+
+      if (userData.role !== "admin") {
+        Alert.alert(
+          "Access Denied",
+          "You are not authorized as an administrator."
+        );
+
+        await auth.signOut();
+        return;
+      }
+
+      Alert.alert("Success", "Welcome Administrator!");
+
+      router.replace("/admin");
+    } catch (error: any) {
+      Alert.alert("Login Failed", error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
+      <Text style={styles.heading}>Admin Access</Text>
 
-      <Text style={styles.heading}>
-        Admin Access
-      </Text>
+      {!showLogin ? (
+        <>
+          <Text style={styles.subtitle}>
+            Enter the Admin Access Code
+          </Text>
 
-      <Text style={styles.subtitle}>
-        Enter the Admin Access Code
-      </Text>
+          <TextInput
+            placeholder="Admin Access Code"
+            value={accessCode}
+            onChangeText={setAccessCode}
+            secureTextEntry
+            style={styles.input}
+          />
 
-      <TextInput
-        placeholder="Access Code"
-        value={code}
-        onChangeText={setCode}
-        secureTextEntry
-        style={styles.input}
-      />
+          <TouchableOpacity
+            style={styles.button}
+            onPress={verifyAccessCode}
+          >
+            <Text style={styles.buttonText}>
+              Verify Code
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Text style={styles.subtitle}>
+            Admin Authentication
+          </Text>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={verifyAdmin}
-      >
-        <Text style={styles.buttonText}>
-          Login as Admin
-        </Text>
-      </TouchableOpacity>
+          <TextInput
+            placeholder="Admin Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            style={styles.input}
+          />
 
+          <TextInput
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+          />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleAdminLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buttonText}>
+                Login as Administrator
+              </Text>
+            )}
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }
@@ -76,6 +175,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 30,
     color: "#666",
+    fontSize: 16,
   },
 
   input: {

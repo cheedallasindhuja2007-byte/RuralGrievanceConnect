@@ -1,6 +1,19 @@
 import { router } from "expo-router";
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { auth } from "../../firebase/firebaseConfig";
+ const handleReportComplaint = () => {
+    if (auth.currentUser) {
+        router.push("/report");
+    } else {
+        router.push({
+            pathname: "/login",
+            params: {
+                redirect: "/report",
+            },
+        });
+    }
+};
 
 export default function HomeScreen() {
   return (
@@ -13,14 +26,9 @@ export default function HomeScreen() {
         Report rural issues easily to the correct government department.
       </Text>
 
-      <TouchableOpacity
-      style={styles.button}
-      onPress={() => router.push("/report")}
-       >
-        <Text style={styles.buttonText}>
-          Report Issue
-        </Text>
-      </TouchableOpacity>
+      <TouchableOpacity  style={styles.button} onPress={handleReportComplaint}>
+        <Text style={styles.buttonText}>Report Complaint</Text>
+     </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.button}
